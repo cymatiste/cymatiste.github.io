@@ -53713,8 +53713,8 @@
 	      console.log("v "+numDrops[sideID]);*/
 
 	      for(let i=0; i<sceneObjects.length; i++){
-	        sceneObjects[i].body.slop = Math.min(2,sceneObjects[i].body.slop*1.1);
-	    
+	        sceneObjects[i].body.slop = Math.min(1,sceneObjects[i].body.slop*1.2);
+	        sceneObjects[i].body.friction = Math.min(1,sceneObjects[i].body.friction*1.1);
 	        Matter.Body.setDensity(sceneObjects[i].body,sceneObjects[i].body.density*1.5);
 	      }
 	      //console.log("slop "+sceneObjects[0].body.slop);
