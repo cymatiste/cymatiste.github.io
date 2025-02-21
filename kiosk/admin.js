@@ -1,9 +1,8 @@
-// Wait for the DOM to be fully loaded before executing the script
-document.addEventListener('DOMContentLoaded', function() {
+function updateValues() {
     // Retrieve the values from localStorage
     const badValue = localStorage.getItem('num_drops_0');
     const goodValue = localStorage.getItem('num_drops_1');
-    const maxValue = localStorage.getItem('num_drops_1');
+    const maxValue = localStorage.getItem('max_drops');
 
     // Get references to the text fields in the form
     const badTextField = document.getElementById('bad');
@@ -20,22 +19,25 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (maxValue) {
-        maxTextField.value = goodValue;
-    }
+        maxTextField.value = maxValue;
+    } 
 
     // Add an event listener to the button to trigger the updateValues function
-    const submitButton = document.getElementById('submit');
-    submitButton.addEventListener('click', ()=>{
+    const saveButton = document.getElementById('save');
+    saveButton.addEventListener('click', ()=>{
         // Get the current values from the text fields
         const badValue = document.getElementById('bad').value;
         const goodValue = document.getElementById('good').value;
+        const maxValue = document.getElementById('max').value;
     
         // Save the values back to localStorage
         localStorage.setItem('num_drops_0', badValue);
         localStorage.setItem('num_drops_1', goodValue);
+        localStorage.setItem('max_drops', maxValue);
     
         // Optional: Notify the user that the values have been saved
         alert('saved!');
+        window.focus.blur();
     });
 
     const resetButton = document.getElementById('reset');
@@ -51,10 +53,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (goodValue) {
             goodTextField.value = 0;
         }
-    
-    
-        // Optional: Notify the user that the values have been saved
-        alert('reset');
+
     });
 
-});
+}
+
+// Wait for the DOM to be fully loaded before executing the script
+document.addEventListener('DOMContentLoaded', updateValues);
+window.onfocus = updateValues;

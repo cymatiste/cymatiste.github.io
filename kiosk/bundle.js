@@ -53465,8 +53465,8 @@
 	  // Data 
 	  let sideID = -1;
 	  let numDrops = [0,0];
-	  let targetDrops = 0;
-	  const maxDrops = 250;
+	  let maxDrops = 250;
+	  let targetMax = 250;
 
 	  // Style
 	  const backgrounds = ["images/gradient0.jpg","images/gradient1.jpg"];
@@ -53476,7 +53476,14 @@
 	  const urlString = window.location.href;
 	  sideID = urlString.split('?')[1].split('=')[1];
 	  console.log("SIDE "+sideID);
-	  targetDrops = localStorage.getItem("num_drops_"+sideID);
+	   
+	  targetMax = localStorage.getItem("max_drops");
+	  if(targetMax != null){
+	    maxDrops = targetMax;
+	  } else {
+	    localStorage.setItem("max_drops",maxDrops);
+	  }
+
 
 	  /*--------------------------
 	  Engine
@@ -53570,10 +53577,7 @@
 	    resizeTo: sceneContainer,
 	  });
 	  app.stage.interactive = true;
-	  /*
-	  app.stage.on('click', function(){
-	    console.log('hello');
-	})*/
+
 
 	  // Put the Pixi apps canvas into the scene container.
 	  document.querySelector(".scene").appendChild(app.view);
@@ -53613,13 +53617,6 @@
 	      sceneObjects[sceneObjects.length-1].body.restitution *= 0.95;
 	    }
 
-
-	    /*if(sceneObjects.length > 0){
-	      sceneObjects[sceneObjects.length-1].body.restitution = 0.1;
-	      //sceneObjects[sceneObjects.length-1].body.friction = 0.01;
-	      //sceneObjects[sceneObjects.length-1].body.frictionStatic = 0.01;
-	    }*/
-	    
 
 	    sceneObjects.push({
 	      body: imageBody,
@@ -53704,8 +53701,8 @@
 	    spawnEmoji(images[sideID]);
 
 	    numDrops[sideID]++;
-	    tempText.text = numDrops[sideID];
-	    localStorage.setItem("num_drops_"+sideID, numDrops[sideID]);
+	    tempText.text = numDrops[sideID]+" / "+maxDrops;
+	    //localStorage.setItem("num_drops_"+sideID, numDrops[sideID]);
 	    app.stage.addChild(tempText);
 
 	    if(numDrops[sideID] > maxDrops){
@@ -53716,9 +53713,11 @@
 	      console.log("v "+numDrops[sideID]);*/
 
 	      for(let i=0; i<sceneObjects.length; i++){
-	        sceneObjects[sceneObjects.length-1].body.slop = Math.min(2,sceneObjects[sceneObjects.length-1].body.slop*3);
+	        sceneObjects[i].body.slop = Math.min(2,sceneObjects[i].body.slop*1.1);
+	    
+	        Matter.Body.setDensity(sceneObjects[i].body,sceneObjects[i].body.density*1.5);
 	      }
-	      console.log("slop "+sceneObjects[0].body.slop);
+	      //console.log("slop "+sceneObjects[0].body.slop);
 	    }
 	  }
 
@@ -53728,36 +53727,46 @@
 	  bgSprite.height = window.innerHeight;
 	  bgSprite.position.set(0,0);
 	  bgSprite.anchor.set(0,0);
-	//  bgSprite.onclick = (event) => { alert('clicked!');};
+
 	  const bgContainer = new Container();
 	  bgContainer.x = 0;
 	  bgContainer.y = 0;
 	  bgContainer.addChild(bgSprite);
 	  bgContainer.interactive = true;
-	  bgContainer.on('click', addOne);
+	  //bgContainer.on('click', addOne);
 
 
 	  app.stage.addChild(bgContainer);
 
-	  const tempText = new Text("", {fontSize:64, fontWeight: 'bold'});
+	  const tempText = new Text("", {fontSize:48, fontWeight: 'bold'});
 	  tempText.x = 50;
 	  tempText.y = 100;
-	  tempText.text = 0;
+	  tempText.text = 0+" / "+maxDrops;
 	  app.stage.addChild(tempText);
 
-	 
-	  for(let i=0; i<targetDrops; i++){
-	    setTimeout(function(){
-	      addOne();
-	    }, i*200);
-	  }
 
-	  document.onkeypress = function (e) {
+	  document.onkeyup = function (e) {
 	    console.log(e.keyCode+" | "+sideID);
-	    if((e.keyCode == 97 && sideID == 0)||(e.keyCode == 108 && sideID==1)){
-	      addOne();
+	    if(e.keyCode == 65){
+	      let knownDrops = parseInt(localStorage.getItem("num_drops_0"));
+	      console.log("previous: "+knownDrops);
+	      localStorage.setItem("num_drops_0",(knownDrops+1));
+	    } else if (e.keyCode == 76){
+	      let knownDrops = parseInt(localStorage.getItem("num_drops_1"));
+	      localStorage.setItem("num_drops_1",(knownDrops+1));
 	    }
 	  };
+
+	  function checkForPresses(){
+	    let latestDrops = localStorage.getItem("num_drops_"+sideID);
+	    console.log(latestDrops+" vs "+numDrops[sideID]);
+	    if(latestDrops > numDrops[sideID]){
+	      addOne();
+	    } else {
+	      localStorage.setItem("num_drops_"+sideID,numDrops[sideID]);
+	    }
+	  }
+	  setInterval(checkForPresses, 1000/30);
 
 	  // Run the Matter engine. This continuously updates the Matter.Engine. It ensures we can listen for the updates on each tick and move the Pixi objects with Matter bodies (see app.ticker function).
 	  Matter.Runner.run(engine);
