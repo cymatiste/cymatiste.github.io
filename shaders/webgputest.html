@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Artificial Life Simulation</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="controls">
+        <div>
+            <label>Agents: <input type="range" id="agentsCount" min="64" max="1000000" value="10000"></label>
+            <span id="agentsCountValue">10000</span>
+        </div>
+        <!-- Add other controls similarly -->
+    </div>
+    <script src="app.js" type="module"></script>
+</body>
+</html>
