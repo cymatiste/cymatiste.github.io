@@ -17,6 +17,7 @@ class TrailSimulation {
         this.stepn = 0;
         this.hitXY = [0, 0];
         this.mouseDown = false;
+        this.frameCount = 0;
         
         this.init();
     }
@@ -53,10 +54,11 @@ class TrailSimulation {
     
     setupControls() {
         // Connect all control elements to update this.controls
-        document.getElementById('agentsCount').addEventListener('input', (e) => {
+        const agentsCountInput = document.getElementById('agentsCount');
+        agentsCountInput.addEventListener('input', (e) => {
             this.controls.agentsCount = parseInt(e.target.value);
             document.getElementById('agentsCountValue').textContent = e.target.value;
-            this.resetAgents();
+            this.resetAgents(); // Fixed method name
         });
         
         // Add similar event listeners for other controls
@@ -96,35 +98,62 @@ class TrailSimulation {
         
         // Load shaders
         this.shaderModules = {
-            reset: await this.loadShaderModule('reset.wgsl'),
-            moveAgents: await this.loadShaderModule('moveAgents.wgsl'),
-            writeTrails: await this.loadShaderModule('writeTrails.wgsl'),
-            diffuse: await this.loadShaderModule('diffuse.wgsl'),
-            render: await this.loadShaderModule('render.wgsl')
+            reset: await this.createShaderModule(resetWGSL),
+            resetAgents: await this.createShaderModule(resetAgentsWGSL),
+            moveAgents: await this.createShaderModule(moveAgentsWGSL),
+            writeTrails: await this.createShaderModule(writeTrailsWGSL),
+            diffuse: await this.createShaderModule(diffuseWGSL),
+            render: await this.createShaderModule(renderWGSL)
         };
         
         // Create pipelines
         this.pipelines = {
-            reset: this.createResetPipeline(),
-            moveAgents: this.createMoveAgentsPipeline(),
-            writeTrails: this.createWriteTrailsPipeline(),
-            diffuse: this.createDiffusePipeline(),
-            render: this.createRenderPipeline()
+            reset: this.createComputePipeline(this.shaderModules.reset, 'resetTexture'),
+            resetAgents: this.createComputePipeline(this.shaderModules.resetAgents, 'resetAgents'),
+            moveAgents: this.createComputePipeline(this.shaderModules.moveAgents, 'moveAgents'),
+            writeTrails: this.createComputePipeline(this.shaderModules.writeTrails, 'writeTrails'),
+            diffuse: this.createComputePipeline(this.shaderModules.diffuse, 'diffuseTexture'),
+            render: this.createRenderPipeline(this.shaderModules.render)
         };
         
         // Reset simulation
         this.reset();
     }
     
-    async loadShaderModule(url) {
-        // In a real app, you'd load these from separate files
-        // For this example, we'll define them inline
-        if (url === 'reset.wgsl') {
-            return this.device.createShaderModule({
-                code: resetWGSL
-            });
-        }
-        // Similarly for other shaders...
+    async createShaderModule(code) {
+        return this.device.createShaderModule({
+            code: code
+        });
+    }
+    
+    createComputePipeline(shaderModule, entryPoint) {
+        return this.device.createComputePipeline({
+            layout: 'auto',
+            compute: {
+                module: shaderModule,
+                entryPoint: entryPoint
+            }
+        });
+    }
+    
+    createRenderPipeline(shaderModule) {
+        return this.device.createRenderPipeline({
+            layout: 'auto',
+            vertex: {
+                module: shaderModule,
+                entryPoint: 'vertexMain',
+            },
+            fragment: {
+                module: shaderModule,
+                entryPoint: 'fragmentMain',
+                targets: [{
+                    format: navigator.gpu.getPreferredCanvasFormat()
+                }]
+            },
+            primitive: {
+                topology: 'triangle-list'
+            }
+        });
     }
     
     createTexture() {
@@ -156,6 +185,61 @@ class TrailSimulation {
         resetAgentsPass.end();
         
         this.device.queue.submit([commandEncoder.finish()]);
+    }
+    
+    resetAgents() {
+        // Recreate the agents buffer with new size
+        if (this.agentsBuffer) {
+            this.agentsBuffer.destroy();
+        }
+        
+        this.agentsBuffer = this.device.createBuffer({
+            size: this.controls.agentsCount * 4 * 4,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        });
+        
+        // Reset the simulation
+        this.reset();
+    }
+    
+    createResetBindGroup() {
+        return this.device.createBindGroup({
+            layout: this.pipelines.reset.getBindGroupLayout(0),
+            entries: [
+                {
+                    binding: 0,
+                    resource: {
+                        texture: this.textures.writeTex
+                    }
+                },
+                {
+                    binding: 1,
+                    resource: {
+                        buffer: this.uniformBuffer
+                    }
+                }
+            ]
+        });
+    }
+    
+    createResetAgentsBindGroup() {
+        return this.device.createBindGroup({
+            layout: this.pipelines.resetAgents.getBindGroupLayout(0),
+            entries: [
+                {
+                    binding: 0,
+                    resource: {
+                        buffer: this.agentsBuffer
+                    }
+                },
+                {
+                    binding: 1,
+                    resource: {
+                        buffer: this.uniformBuffer
+                    }
+                }
+            ]
+        });
     }
     
     step() {
@@ -243,27 +327,9 @@ class TrailSimulation {
     }
 }
 
-// WGSL Shaders (similar to your compute shaders but in WGSL syntax)
+// WGSL Shaders
 const resetWGSL = `
-@group(0) @binding(0) var<storage, read_write> agentsBuffer: array<vec4f>;
-
-@group(0) @binding(1) var<storage, read_write> writeTex: texture_storage_2d<rgba8unorm, write>;
-
-@group(0) @binding(2) var<uniform> params: Params;
-
-struct Params {
-    rez: f32,
-    time: u32,
-    nrange: u32,
-    thresh: f32,
-    randomness: f32
-};
-
-@compute @workgroup_size(64)
-fn resetAgents(@builtin(global_invocation_id) id: vec3u) {
-    // Similar logic to your ResetAgentsKernel
-    // Initialize agent positions and directions
-}
+@group(0) @binding(0) var writeTex: texture_storage_2d<rgba8unorm, write>;
 
 @compute @workgroup_size(8, 8)
 fn resetTexture(@builtin(global_invocation_id) id: vec3u) {
@@ -271,7 +337,32 @@ fn resetTexture(@builtin(global_invocation_id) id: vec3u) {
 }
 `;
 
-// Similar WGSL shaders for moveAgents, writeTrails, diffuse, and render
+const resetAgentsWGSL = `
+struct Agent {
+    position: vec2f,
+    direction: vec2f
+};
+
+@group(0) @binding(0) var<storage, read_write> agentsBuffer: array<Agent>;
+
+@group(0) @binding(1) var<uniform> params: Params;
+
+struct Params {
+    rez: f32,
+    time: u32
+};
+
+@compute @workgroup_size(64)
+fn resetAgents(@builtin(global_invocation_id) id: vec3u) {
+    let rand1 = fract(sin(f32(id.x) * 12.9898 + params.time * 0.001) * 43758.5453);
+    let rand2 = fract(sin(f32(id.x) * 78.233 + params.time * 0.001) * 43758.5453);
+    
+    agentsBuffer[id.x].position = vec2f(rand1, rand2) * params.rez;
+    agentsBuffer[id.x].direction = normalize(vec2f(rand1 - 0.5, rand2 - 0.5));
+}
+`;
+
+// Add other shaders (moveAgents, writeTrails, diffuse, render) similarly
 
 // Start the application
 window.addEventListener('load', () => {
