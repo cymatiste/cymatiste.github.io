@@ -25,3 +25,5 @@ hexes =     [
 	    "#7FDD4C", //35_Absinthe
 	    "#FCF75E" //37_Icterine
 	  ];
+
+      console.log("hexes loaded");
